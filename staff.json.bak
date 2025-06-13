@@ -1,0 +1,74 @@
+{
+  "staffList": [
+    {
+      "districtNo": "511",
+      "departmentNo": "7",
+      "shozokuMei": "福岡支店",
+      "staffName": "海江田 尊純",
+      "katakanaNam": "カイエダタカスミ"
+    },
+    {
+      "districtNo": "511",
+      "departmentNo": "7",
+      "shozokuMei": "福岡支店",
+      "staffName": "山本 健",
+      "katakanaNam": "ヤマモトケン"
+    },
+    {
+      "districtNo": "511",
+      "departmentNo": "7",
+      "shozokuMei": "福岡支店",
+      "staffName": "荒木 翔吾",
+      "katakanaNam": "アラキショウゴ"
+    },
+    {
+      "districtNo": "511",
+      "departmentNo": "7",
+      "shozokuMei": "福岡支店",
+      "staffName": "舛田 恭経",
+      "katakanaNam": "マスダヤスノリ"
+    },
+    {
+      "districtNo": "511",
+      "departmentNo": "7",
+      "shozokuMei": "福岡支店",
+      "staffName": "寺園 和義",
+      "katakanaNam": "テラゾノカズヨシ"
+    },
+    {
+      "districtNo": "511",
+      "departmentNo": "124",
+      "shozokuMei": "福岡西営業所",
+      "staffName": "弓弦 健作",
+      "katakanaNam": "ユミズルケンサク"
+    },
+    {
+      "districtNo": "511",
+      "departmentNo": "124",
+      "shozokuMei": "福岡西営業所",
+      "staffName": "畦地 一正",
+      "katakanaNam": "アゼチイッセイ"
+    },
+    {
+      "districtNo": "511",
+      "departmentNo": "124",
+      "shozokuMei": "福岡西営業所",
+      "staffName": "川井田 信明",
+      "katakanaNam": "カワイダノブアキ"
+    },
+    {
+      "districtNo": "511",
+      "departmentNo": "124",
+      "shozokuMei": "福岡西営業所",
+      "staffName": "岡井 一彦",
+      "katakanaNam": "オカイカズヒコ"
+    },
+    {
+      "districtNo": "511",
+      "departmentNo": "124",
+      "shozokuMei": "福岡西営業所",
+      "staffName": "山下 翔大",
+      "katakanaNam": "ヤマシタショウタ"
+    }
+  ]
+}

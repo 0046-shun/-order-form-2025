@@ -1,0 +1,363 @@
+:root {
+    --primary-gradient: linear-gradient(45deg, #2937f0, #9f1ae2);
+    --success-gradient: linear-gradient(45deg, #28a745, #1e7e34);
+    --info-gradient: linear-gradient(45deg, #17a2b8, #117a8b);
+    --warning-gradient: linear-gradient(45deg, #ffc107, #d39e00);
+}
+
+body {
+    background-color: #f8f9fa;
+    padding-top: 2rem;
+    padding-bottom: 2rem;
+}
+
+/* カード全体のスタイル */
+.card {
+    border-radius: 15px;
+    border: none;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    margin-bottom: 1.5rem;
+    position: relative;
+    z-index: 1;
+}
+
+.card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 .5rem 1rem rgba(0,0,0,.15)!important;
+}
+
+.card-header {
+    border-bottom: none;
+    padding: 1rem 1.5rem;
+    font-weight: 600;
+}
+
+.card-body {
+    padding: 1.5rem;
+}
+
+.form-control,
+.form-select {
+    border-radius: 8px;
+    border: 1px solid #ced4da;
+    padding: 0.75rem 1rem;
+    transition: all 0.3s ease;
+}
+
+.form-control:focus,
+.form-select:focus {
+    border-color: #80bdff;
+    box-shadow: 0 0 0 0.2rem rgba(0,123,255,.25);
+    background-color: #fff;
+}
+
+.form-control:not(:placeholder-shown) {
+    background-color: #f8f9fa;
+}
+
+.form-label {
+    font-weight: 500;
+    margin-bottom: 0.5rem;
+    color: #495057;
+}
+
+.btn {
+    padding: 0.75rem 1.5rem;
+    border-radius: 8px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+}
+
+.btn-primary {
+    background: var(--primary-gradient);
+    border: none;
+}
+
+.btn-success {
+    background: var(--success-gradient);
+    border: none;
+}
+
+.section-header {
+    color: white;
+    background: var(--primary-gradient);
+    padding: 1rem;
+    border-radius: 8px 8px 0 0;
+}
+
+/* 担当者候補表示関連のスタイル */
+
+.col-md-6 {
+    position: relative;
+}
+
+.suggestions {
+    position: relative;
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    max-height: 300px;
+    overflow-y: auto;
+    width: 100%;
+    margin-top: 2px;
+}
+
+
+
+.suggestions table {
+    width: 100%;
+    border-collapse: collapse;
+    background: white;
+    margin: 0;
+}
+
+.suggestions thead {
+    position: sticky;
+    top: 0;
+    background: white;
+    z-index: 10000; /* テーブルヘッダーをさらに上に */
+}
+
+.suggestions th,
+.suggestions td {
+    padding: 8px;
+    border: 1px solid #ddd;
+    white-space: nowrap;
+}
+
+.suggestions tr {
+    background: white;
+}
+
+.suggestions tr:hover {
+    background-color: #f5f5f5;
+    cursor: pointer;
+}
+
+/* スクロールバーのスタイル */
+.suggestions::-webkit-scrollbar {
+    width: 5px;
+}
+
+.suggestions::-webkit-scrollbar-track {
+    background: #f1f1f1;
+}
+
+.suggestions::-webkit-scrollbar-thumb {
+    background: #888;
+}
+
+.suggestions::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}
+
+/* ローディング表示 */
+.loading {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(255, 255, 255, 0.9);
+    display: none;
+    justify-content: center;
+    align-items: center;
+    z-index: 20000; /* 最前面 */
+}
+
+.loading-spinner {
+    width: 3rem;
+    height: 3rem;
+}
+
+/* モーダル関連 */
+.modal-content {
+    border-radius: 15px;
+    border: none;
+}
+
+.modal-header {
+    background: var(--primary-gradient);
+    color: white;
+    border-radius: 15px 15px 0 0;
+}
+
+.modal-footer {
+    border-top: none;
+    padding: 1.5rem;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* レスポンシブ調整 */
+@media (max-width: 768px) {
+    .card {
+        margin-bottom: 1rem;
+    }
+    
+    .form-control, .form-select {
+        padding: 0.5rem 0.75rem;
+    }
+}
+
+/* 商品サマリーリスト用スタイル */
+#summary-list {
+  margin-top: 10px;
+  border: 1px solid #dee2e6;
+  border-radius: 5px;
+  overflow: hidden;
+}
+
+.summary-empty {
+  padding: 15px;
+  text-align: center;
+  color: #6c757d;
+  font-style: italic;
+}
+
+/* モーダル内計算結果表示用スタイル */
+.card-header {
+  background-color: #f8f9fa;
+  font-weight: bold;
+}
+
+/* サマリーのバッジ */
+.badge.bg-primary {
+  font-size: 0.9rem;
+}
+
+/* 単位表示 */
+#qtyUnit {
+  min-width: 40px;
+  text-align: center;
+}
+
+/* オプションチェックボックス */
+.form-check-input {
+  cursor: pointer;
+}
+
+.form-check-label {
+  cursor: pointer;
+  user-select: none;
+}
+
+/* モーダル内の区切り線 */
+.modal-body hr {
+  margin: 1.5rem 0;
+}
+
+/* 計算結果のハイライト */
+.fw-bold {
+  color: #0d6efd;
+}
+
+/* カタカナボードのスタイル */
+#katakana-board {
+  max-width: 100%;
+  overflow-x: auto;
+  margin-bottom: 15px;
+  height: auto;
+  min-height: 200px;
+  overflow-y: auto;
+  background-color: #f8f9fa;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  padding: 10px;
+}
+
+.katakana-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  width: 100%;
+}
+
+.katakana-column {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 5px;
+}
+
+.katakana-btn {
+  width: 35px;
+  height: 35px;
+  padding: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 14px;
+  margin: 2px;
+  cursor: pointer;
+  position: relative;
+  z-index: 100;
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  transition: all 0.1s ease;
+}
+
+.katakana-btn:hover {
+  transform: scale(1.1);
+  background-color: #e7f5ff;
+  z-index: 101;
+}
+
+.katakana-btn:active {
+  transform: scale(0.95);
+  background-color: #a5d8ff;
+}
+
+/* サジェスト表示の調整 */
+#staff-suggestions {
+  display: none;
+  max-height: 250px;
+  overflow-y: auto;
+  z-index: 2000;
+  width: 100%;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background-color: white;
+  margin-top: 10px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  position: relative;
+}
+
+#staff-suggestions.active {
+  display: block;
+}
+
+/* サジェスト表のスタイリングを改善 */
+#staff-suggestions table {
+  width: 100%;
+  margin-bottom: 0;
+}
+
+#staff-suggestions thead th {
+  position: sticky;
+  top: 0;
+  background-color: #f8f9fa;
+  z-index: 1001;
+  font-weight: 600;
+  padding: 10px 8px;
+  font-size: 0.9rem;
+}
+
+#staff-suggestions tbody tr {
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+#staff-suggestions tbody tr:hover {
+  background-color: #e9f3ff !important;
+}
+
+#staff-suggestions tbody td {
+  padding: 8px;
+  vertical-align: middle;
+  font-size: 0.9rem;
+}

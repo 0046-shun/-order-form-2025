@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>商品選択モーダル</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="data.js"></script>
+    <style>
+        .modal {
+            display: block;
+            position: relative;
+            width: 100%;
+            height: auto;
+            background-color: transparent;
+            z-index: 1;
+        }
+
+        .modal-dialog {
+            margin: 1.75rem auto;
+            max-width: 800px;
+        }
+
+        .modal-content {
+            background-color: #fff;
+            border-radius: 0.3rem;
+            box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+        }
+
+        .modal-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 1rem;
+            border-bottom: 1px solid #dee2e6;
+            background-color: #f8f9fa;
+        }
+
+        .modal-body {
+            padding: 1rem;
+        }
+
+        .modal-footer {
+            padding: 1rem;
+            border-top: 1px solid #dee2e6;
+            background-color: #f8f9fa;
+        }
+
+        .form-label {
+            font-weight: 500;
+            margin-bottom: 0.5rem;
+        }
+
+        .form-select, .form-control {
+            border: 1px solid #ced4da;
+            border-radius: 0.25rem;
+            padding: 0.375rem 0.75rem;
+        }
+
+        .form-select:focus, .form-control:focus {
+            border-color: #86b7fe;
+            box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+        }
+
+        .card {
+            border: 1px solid #dee2e6;
+            border-radius: 0.3rem;
+            margin-bottom: 1rem;
+        }
+
+        .card-header {
+            background-color: #f8f9fa;
+            border-bottom: 1px solid #dee2e6;
+            padding: 0.75rem 1rem;
+            font-weight: 500;
+        }
+
+        .card-body {
+            padding: 1rem;
+        }
+
+        .btn {
+            padding: 0.375rem 0.75rem;
+            border-radius: 0.25rem;
+            font-weight: 500;
+        }
+
+        .btn-primary {
+            background-color: #0d6efd;
+            border-color: #0d6efd;
+            color: #fff;
+        }
+
+        .btn-primary:hover {
+            background-color: #0b5ed7;
+            border-color: #0a58ca;
+        }
+
+        .btn-secondary {
+            background-color: #6c757d;
+            border-color: #6c757d;
+            color: #fff;
+        }
+
+        .btn-secondary:hover {
+            background-color: #5c636a;
+            border-color: #565e64;
+        }
+
+        .form-check {
+            margin-bottom: 0.5rem;
+        }
+
+        .form-check-input:checked {
+            background-color: #0d6efd;
+            border-color: #0d6efd;
+        }
+
+        .list-group-item {
+            border: 1px solid #dee2e6;
+            padding: 0.75rem 1rem;
+        }
+
+        .text-muted {
+            color: #6c757d !important;
+        }
+
+        @media (max-width: 768px) {
+            .modal-dialog {
+                margin: 0.5rem;
+                max-width: calc(100% - 1rem);
+            }
+
+            .row {
+                margin-right: -0.5rem;
+                margin-left: -0.5rem;
+            }
+
+            .col-md-6 {
+                padding-right: 0.5rem;
+                padding-left: 0.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- 商品選択モーダル -->
+    <div class="modal" id="product-modal">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">商品選択・金額計算</h5>
+                    <button type="button" class="btn-close" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <!-- 商品選択エリア -->
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">カテゴリ</label>
+                            <select id="modalCategory" class="form-select"></select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">商品</label>
+                            <select id="modalProduct" class="form-select"></select>
+                        </div>
+                    </div>
+
+                    <!-- 数量入力エリア -->
+                    <div class="row mb-3" id="quantityFields">
+                        <div class="col-md-6">
+                            <label class="form-label">数量</label>
+                            <div class="input-group">
+                                <input type="number" id="modalQty" class="form-control" value="1" min="0.1" step="0.1">
+                                <span class="input-group-text" id="qtyUnit">坪</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 一般管理費と割引の設定 -->
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="checkbox" id="modalOverheadCheck">
+                                <label class="form-check-label" for="modalOverheadCheck">
+                                    一般管理費（20,000円）を適用
+                                </label>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">割引</label>
+                            <div class="input-group">
+                                <input type="number" id="modalDiscount" class="form-control" value="0" min="0">
+                                <span class="input-group-text">%/円</span>
+                                <div class="form-text text-muted">100未満は%割引、100以上は円割引</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 基礎関連の入力フィールド（初期状態では非表示） -->
+                    <div class="row mb-3" id="kisoFields" style="display: none;">
+                        <div class="col-md-4">
+                            <label class="form-label">高さ</label>
+                            <select id="modalHeight" class="form-select"></select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">長さ</label>
+                            <div class="input-group">
+                                <input type="number" id="modalLength" class="form-control" value="0" min="0" step="0.1">
+                                <span class="input-group-text" id="lengthUnit">m</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- オプション選択エリア -->
+                    <div class="card mb-3">
+                        <div class="card-header">オプション</div>
+                        <div class="card-body" id="modalOptions">
+                            <!-- オプションがここに動的に追加されます -->
+                        </div>
+                    </div>
+
+                    <!-- 計算結果表示エリア -->
+                    <div class="mt-4">
+                        <h6>選択商品リスト</h6>
+                        <ul id="summary-list" class="list-group">
+                            <!-- 選択された商品情報がここに表示されます -->
+                        </ul>
+                        
+                        <!-- 合計金額表示 -->
+                        <div class="card mt-3">
+                            <div class="card-header">合計金額</div>
+                            <div class="card-body" id="calculationTotal">
+                                <!-- 合計金額が表示されます -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary">キャンセル</button>
+                    <button type="button" class="btn btn-primary" id="confirmProductBtn">決定</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // 選択された商品を保持する配列
+            let selectedProducts = [];
+            const OVERHEAD_AMOUNT = 20000; // 一般管理費の固定金額
+            const TAX_RATE = 0.1; // 消費税率 10%
+
+            // 商品を追加する関数
+            function addProduct() {
+                const category = document.getElementById('modalCategory').value;
+                const product = document.getElementById('modalProduct').value;
+                const quantity = parseFloat(document.getElementById('modalQty').value) || 0;
+                const discount = parseFloat(document.getElementById('modalDiscount').value) || 0;
+                const height = document.getElementById('modalHeight')?.value;
+                const length = parseFloat(document.getElementById('modalLength')?.value) || 0;
+
+                if (!category || !product || quantity <= 0) {
+                    alert('カテゴリ、商品、数量を正しく入力してください。');
+                    return;
+                }
+
+                // 商品データを取得
+                let productData;
+                if (category.startsWith('kiso-')) {
+                    const kisoCategory = category.replace('kiso-', '');
+                    productData = kisoProductsData[kisoCategory]?.[product];
+                } else {
+                    productData = productsData[category]?.[product];
+                }
+
+                if (!productData) {
+                    alert('商品データが見つかりません。');
+                    return;
+                }
+
+                // 価格計算
+                let basePrice = 0;
+                let optionPrice = 0;
+                let totalPrice = 0;
+
+                // 基礎関連の価格計算
+                if (category.startsWith('kiso-')) {
+                    const kisoCategory = category.replace('kiso-', '');
+                    const kisoData = kisoProductsData[kisoCategory][product];
+                    const heightPrices = kisoData["高さ別価格"][height];
+                    if (!heightPrices) {
+                        alert('高さの価格データが見つかりません。');
+                        return;
+                    }
+
+                    const basicLength = kisoData["基本長さ"] || 0;
+                    basePrice = heightPrices["基本価格"];
+
+                    if (length > basicLength) {
+                        const extraLength = length - basicLength;
+                        basePrice += extraLength * heightPrices["長さ加算"];
+                    }
+
+                    // 基礎セット割引の適用
+                    if ((kisoCategory === "新規工事" || kisoCategory === "追加工事") && 
+                        (product === "外基礎" || product === "中基礎") && 
+                        checkKisoSetDiscount(selectedProducts)) {
+                        basePrice -= 20000; // セット割引
+                    }
+                }
+                // 特殊商品の価格計算（カビ、BM）
+                else if (category === "そのほか" && product === "カビ" || category === "消毒" && product === "カビ消毒") {
+                    basePrice = calculateKabiPrice(quantity, selectedProducts);
+                }
+                else if (category === "そのほか" && product === "BM") {
+                    basePrice = calculateBMPrice(quantity, selectedProducts);
+                }
+                // 通常商品の価格計算
+                else {
+                    basePrice = productData.base || 0;
+                    
+                    // 数量に応じた価格計算
+                    if (productData.areaThreshold && quantity > productData.areaThreshold) {
+                        // 閾値を超える部分は単価×超過量
+                        const extraQuantity = quantity - productData.areaThreshold;
+                        basePrice += extraQuantity * productData.price;
+                    } else if (!productData.areaThreshold && productData.price > 0) {
+                        // 閾値がない場合は基本価格 + (単価×数量)
+                        basePrice = productData.base + (productData.price * quantity);
+                    }
+                }
+
+                // オプション価格を加算
+                const selectedOptions = [];
+                document.querySelectorAll('#modalOptions input[type="checkbox"]:checked').forEach(checkbox => {
+                    const optionName = checkbox.dataset.option;
+                    if (productsData["オプション"]?.[optionName]) {
+                        const optionData = productsData["オプション"][optionName];
+                        optionPrice += optionData.price * quantity;
+                        selectedOptions.push({
+                            name: optionName,
+                            price: optionData.price,
+                            unit: optionData.unit || '坪'
+                        });
+                    }
+                });
+
+                // 割引の適用
+                let discountAmount = 0;
+                if (discount > 0) {
+                    if (discount < 100) {
+                        // パーセント割引
+                        discountAmount = Math.floor(basePrice * (discount / 100));
+                    } else {
+                        // 金額割引
+                        discountAmount = discount > basePrice ? basePrice : discount;
+                    }
+                    basePrice -= discountAmount;
+                }
+
+                // 合計金額の計算
+                totalPrice = basePrice + optionPrice;
+                const taxAmount = Math.floor(totalPrice * TAX_RATE);
+                const totalWithTax = totalPrice + taxAmount;
+
+                // 商品情報を作成
+                const productInfo = {
+                    category: category,
+                    item: product,
+                    quantity: quantity,
+                    discount: discount,
+                    height: height,
+                    length: length,
+                    options: selectedOptions,
+                    basePrice: basePrice,
+                    optionPrice: optionPrice,
+                    subtotal: totalPrice,
+                    tax: taxAmount,
+                    total: totalWithTax,
+                    unit: productData.unit || '坪'
+                };
+
+                // 表示用の商品名を設定
+                if (category.startsWith('kiso-')) {
+                    const kisoCategory = category.replace('kiso-', '');
+                    if (kisoCategory === "新規工事") {
+                        productInfo.displayName = "外基礎";
+                        productInfo.detailInfo = `${height}*${length}m`;
+                    } else if (kisoCategory === "追加工事") {
+                        productInfo.displayName = "中基礎追加";
+                        productInfo.detailInfo = `${height}*${length}m`;
+                    } else if (kisoCategory === "クラック工事") {
+                        productInfo.displayName = product;
+                        productInfo.detailInfo = `${height}*${length}m`;
+                    } else {
+                        productInfo.displayName = `${product} ${height}cm ${length}${kisoProductsData[kisoCategory][product].unit || 'm'}`;
+                        productInfo.detailInfo = kisoCategory;
+                    }
+                } else {
+                    productInfo.displayName = product + (selectedOptions.length > 0 ? `（${selectedOptions.map(opt => opt.name).join('・')}）` : '');
+                    productInfo.detailInfo = category;
+                }
+
+                // 商品IDを設定
+                productInfo.id = Date.now().toString();
+
+                // 商品を配列に追加
+                selectedProducts.push(productInfo);
+
+                // 表示を更新
+                updateProductList();
+                updateTotalAmount();
+
+                // 入力フィールドをリセット
+                resetInputFields();
+            }
+
+            // 商品リストの表示を更新
+            function updateProductList() {
+                const listElement = document.getElementById('summary-list');
+                listElement.innerHTML = '';
+
+                selectedProducts.forEach((item, index) => {
+                    const li = document.createElement('li');
+                    li.className = 'list-group-item d-flex justify-content-between align-items-center';
+                    
+                    // 商品名と数量の表示
+                    let productText = item.displayName;
+                    if (!item.category.startsWith('kiso-')) {
+                        productText += ` (${item.quantity}${item.unit})`;
+                    }
+
+                    // 基本価格・基本数量の情報を表示
+                    let priceInfo = '';
+                    if (!item.category.startsWith('kiso-')) {
+                        const productData = productsData[item.category]?.[item.item];
+                        if (productData) {
+                            if (productData.areaThreshold && item.quantity > productData.areaThreshold) {
+                                priceInfo = `（基本数量${productData.areaThreshold}${item.unit}以上: ${productData.price.toLocaleString()}円/${item.unit}）`;
+                            } else if (productData.areaThreshold) {
+                                priceInfo = `（基本数量${productData.areaThreshold}${item.unit}未満: ${productData.base.toLocaleString()}円）`;
+                            }
+                        }
+                    }
+
+                    li.innerHTML = `
+                        <div>
+                            <span>${productText}</span>
+                            <small class="text-muted d-block">
+                                ${priceInfo}
+                                小計: ${item.subtotal.toLocaleString()}円
+                                ${item.discount > 0 ? ` (割引: -${(item.basePrice - item.subtotal).toLocaleString()}円)` : ''}
+                            </small>
+                        </div>
+                        <div class="d-flex align-items-center">
+                            <span class="me-3">${item.total.toLocaleString()}円</span>
+                            <button type="button" class="btn btn-sm btn-danger" onclick="removeProduct(${index})">削除</button>
+                        </div>
+                    `;
+
+                    listElement.appendChild(li);
+                });
+            }
+
+            // 合計金額の更新
+            function updateTotalAmount() {
+                const totalElement = document.getElementById('calculationTotal');
+                const hasOverhead = document.getElementById('modalOverheadCheck').checked;
+                
+                const totals = selectedProducts.reduce((acc, item) => {
+                    acc.subtotal += item.subtotal;
+                    acc.tax += item.tax;
+                    acc.total += item.total;
+                    return acc;
+                }, { subtotal: 0, tax: 0, total: 0 });
+
+                // 一般管理費の適用
+                if (hasOverhead) {
+                    totals.subtotal += OVERHEAD_AMOUNT;
+                    totals.total += OVERHEAD_AMOUNT;
+                }
+
+                totalElement.innerHTML = `
+                    <div class="h4 mb-0">合計金額: ${totals.total.toLocaleString()}円</div>
+                    <div class="text-muted">
+                        <small>
+                            商品合計: ${totals.subtotal.toLocaleString()}円
+                            ${hasOverhead ? ` + 一般管理費: ${OVERHEAD_AMOUNT.toLocaleString()}円` : ''}
+                            (税込: ${totals.total.toLocaleString()}円)
+                        </small>
+                    </div>
+                `;
+            }
+
+            // 入力フィールドのリセット
+            function resetInputFields() {
+                document.getElementById('modalQty').value = '1';
+                document.getElementById('modalDiscount').value = '0';
+                document.getElementById('modalLength').value = '0';
+                document.querySelectorAll('#modalOptions input[type="checkbox"]').forEach(cb => cb.checked = false);
+            }
+
+            // 商品の削除
+            window.removeProduct = function(index) {
+                selectedProducts.splice(index, 1);
+                updateProductList();
+                updateTotalAmount();
+            };
+
+            // イベントリスナーの設定
+            document.getElementById('modalCategory').addEventListener('change', function() {
+                updateProductSelect(this.value);
+            });
+
+            // 一般管理費チェックボックスのイベントリスナー
+            document.getElementById('modalOverheadCheck').addEventListener('change', function() {
+                updateTotalAmount();
+            });
+
+            // 商品追加ボタンのイベントリスナー
+            document.getElementById('confirmProductBtn').addEventListener('click', addProduct);
+
+            // カテゴリの初期化を実行
+            initCategorySelect();
+        });
+    </script>
+</body>
+</html> 

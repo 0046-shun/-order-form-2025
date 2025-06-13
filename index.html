@@ -1,0 +1,1164 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="受注入力フォーム">
+    <meta name="robots" content="noindex,nofollow">
+    <title>受注入力フォーム</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
+    <!-- カスタムCSS -->
+    <link href="style.css" rel="stylesheet">
+    <!-- Firebase JS -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+        import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+        import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+        
+        const firebaseConfig = {
+            apiKey: "AIzaSyB56OrGZZlIAfNgR_qwqamjFpZtrKpxEDs",
+            authDomain: "order-form-2025.firebaseapp.com",
+            projectId: "order-form-2025",
+            storageBucket: "order-form-2025.appspot.com",
+            messagingSenderId: "519846061654",
+            appId: "1:519846061654:web:3dd3fdad301fab4cc73df7"
+        };
+        
+        // Firebase初期化
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        
+        // パスワード変更通知を無効化
+        auth.useDeviceLanguage();
+        auth.settings.appVerificationDisabledForTesting = true;
+        
+        // 認証状態の監視
+        onAuthStateChanged(auth, async (user) => {
+            // ローディング表示を非表示
+            document.getElementById('loading').style.display = 'none';
+            
+            if (!user) {
+                // 未認証の場合はログイン画面にリダイレクト
+                window.location.href = 'login.html';
+            } else {
+                // 認証済みの場合はフォーム表示
+                document.getElementById('app-container').style.display = 'block';
+                
+                try {
+                    // Firestoreからユーザープロフィール情報を取得
+                    const userDocRef = doc(db, "users", user.uid);
+                    const userDoc = await getDoc(userDocRef);
+                    
+                    if (userDoc.exists()) {
+                        // ユーザープロフィールが存在する場合は受付者欄に自動入力
+                        const userData = userDoc.data();
+                        if (userData.displayName) {
+                            // 受付者欄に表示名を設定
+                            document.getElementById('receiver').value = userData.displayName;
+                            document.getElementById('receiver').classList.add('is-valid');
+                        }
+                    } else {
+                        // Firestoreにプロフィールがない場合はメールアドレスから取得
+                        const emailName = user.email ? user.email.split('@')[0] : '';
+                        if (emailName) {
+                            document.getElementById('receiver').value = emailName;
+                            document.getElementById('receiver').classList.add('is-valid');
+                        }
+                    }
+                    
+                    // ログインユーザー情報をグローバル変数に保存
+                    window.currentUser = {
+                        uid: user.uid,
+                        email: user.email,
+                        displayName: user.displayName || ''
+                    };
+                    
+                    console.log('ログインユーザー:', window.currentUser);
+                } catch (error) {
+                    console.error('ユーザー情報取得エラー:', error);
+                }
+            }
+        });
+    </script>
+</head>
+<body>
+    <!-- ローディング表示 -->
+    <div id="loading" class="loading">
+        <div class="spinner-border text-primary loading-spinner" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+    </div>
+
+    <div id="app-container" class="container" style="display: none;">
+        <div class="d-flex justify-content-between align-items-center mb-5">
+            <h1 class="text-center">受注入力フォーム</h1>
+            <div class="d-flex">
+                <button id="profile-btn" class="btn btn-outline-primary me-2">
+                    <i class="bi bi-person-circle"></i> プロフィール
+                </button>
+                <button id="logout-btn" class="btn btn-outline-danger">
+                    <i class="bi bi-box-arrow-right"></i> ログアウト
+                </button>
+            </div>
+        </div>
+
+        <form id="order-form">
+            <!-- 基本情報セクション -->
+            <div class="card">
+                <div class="card-header section-header">
+                    <h5 class="mb-0">基本情報</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label for="greeting_date" class="form-label">挨拶日</label>
+                            <div class="input-group">
+                                <input type="text" id="greeting_date" name="greeting_date" class="form-control" required lang="ja" lang-initial-inputmode="hiragana">
+                                <button class="btn btn-outline-secondary" type="button" id="update-date-btn">
+                                    <i class="bi bi-arrow-clockwise"></i> 今日の日付
+                                </button>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="time" class="form-label">時間</label>
+                            <div class="input-group">
+                                <input type="text" id="time" name="time" class="form-control" required lang="ja" lang-initial-inputmode="hiragana">
+                                <button class="btn btn-outline-secondary" type="button" id="update-time-btn">
+                                    <i class="bi bi-arrow-clockwise"></i> 現在時刻
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 担当者情報セクション -->
+            <div class="card">
+                <div class="card-header section-header" style="background: var(--info-gradient);">
+                    <h5 class="mb-0">担当者情報</h5>
+                </div>
+                <div class="card-body position-relative">
+                    <div class="col-md-3">
+                        <label for="staff_name" class="form-label">担当者検索 <button type="button" id="toggle-keyboard" class="btn btn-sm btn-outline-secondary">キーボード表示</button></label>
+                        <input type="text" id="staff_name" name="staff_name" class="form-control" placeholder="カタカナで入力" required lang="ja" lang-initial-inputmode="hiragana">
+                    </div>
+                    <div class="row g-3">
+                        <div class="col-md-3">
+                            <label for="district_no" class="form-label">地区No</label>
+                            <input type="text" id="district_no" name="district_no" class="form-control" readonly>
+                        </div>
+                        <div class="col-md-3">
+                            <label for="department_no" class="form-label">所属No</label>
+                            <input type="text" id="department_no" name="department_no" class="form-control" readonly>
+                        </div>
+                        <div class="col-md-3">
+                            <label for="department_name" class="form-label">所属名</label>
+                            <input type="text" id="department_name" name="department_name" class="form-control" readonly>
+                        </div>
+                    </div>
+                    
+                    <div class="col-12 mt-3">
+                        <!-- カタカナボード（初期状態では非表示） -->
+                        <div id="katakana-board" style="display: none;">
+                            <div class="d-flex flex-wrap justify-content-between">
+                                <!-- アカサタナハマヤラワ列 -->
+                                <div class="katakana-row d-flex flex-wrap">
+                                    <!-- 「ア」行 -->
+                                    <div class="katakana-column me-1">
+                                        <button type="button" class="btn btn-sm btn-outline-secondary katakana-btn mb-1">ア</button>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary katakana-btn mb-1">イ</button>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary katakana-btn mb-1">ウ</button>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary katakana-btn mb-1">エ</button>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary katakana-btn mb-1">オ</button>
+                                    </div>
+                                    
+                                    <!-- 「カ」行 -->
+                                    <div class="katakana-column me-1">
+                                        <button type="button" class="btn btn-sm btn-outline-secondary katakana-btn mb-1">カ</button>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary katakana-btn mb-1">キ</button>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary katakana-btn mb-1">ク</button>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary katakana-btn mb-1">ケ</button>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary katakana-btn mb-1">コ</button>
+                                    </div>
+
+                                    <!-- 「サ」行 -->
+                                    <div class="katakana-column me-1">
+                                        <button type="button" class="btn btn-sm btn-outline-secondary katakana-btn mb-1">サ</button>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary katakana-btn mb-1">シ</button>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary katakana-btn mb-1">ス</button>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary katakana-btn mb-1">セ</button>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary katakana-btn mb-1">ソ</button>
+                                    </div>
+
+                                    <!-- 「タ」行 -->
+                                    <div class="katakana-column me-1">
+                                        <button type="button" class="btn btn-sm btn-outline-secondary katakana-btn mb-1">タ</button>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary katakana-btn mb-1">チ</button>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary katakana-btn mb-1">ツ</button>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary katakana-btn mb-1">テ</button>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary katakana-btn mb-1">ト</button>
+                                    </div>
+
+                                    <!-- 「ナ」行 -->
+                                    <div class="katakana-column me-1">
+                                        <button type="button" class="btn btn-sm btn-outline-secondary katakana-btn mb-1">ナ</button>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary katakana-btn mb-1">ニ</button>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary katakana-btn mb-1">ヌ</button>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary katakana-btn mb-1">ネ</button>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary katakana-btn mb-1">ノ</button>
+                                    </div>
+
+                                    <!-- 「ハ」行 -->
+                                    <div class="katakana-column me-1">
+                                        <button type="button" class="btn btn-sm btn-outline-secondary katakana-btn mb-1">ハ</button>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary katakana-btn mb-1">ヒ</button>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary katakana-btn mb-1">フ</button>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary katakana-btn mb-1">ヘ</button>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary katakana-btn mb-1">ホ</button>
+                                    </div>
+
+                                    <!-- 「マ」行 -->
+                                    <div class="katakana-column me-1">
+                                        <button type="button" class="btn btn-sm btn-outline-secondary katakana-btn mb-1">マ</button>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary katakana-btn mb-1">ミ</button>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary katakana-btn mb-1">ム</button>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary katakana-btn mb-1">メ</button>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary katakana-btn mb-1">モ</button>
+                                    </div>
+
+                                    <!-- 「ヤ」行 -->
+                                    <div class="katakana-column me-1">
+                                        <button type="button" class="btn btn-sm btn-outline-secondary katakana-btn mb-1">ヤ</button>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary katakana-btn mb-1">　</button>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary katakana-btn mb-1">ユ</button>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary katakana-btn mb-1">　</button>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary katakana-btn mb-1">ヨ</button>
+                                    </div>
+
+                                    <!-- 「ラ」行 -->
+                                    <div class="katakana-column me-1">
+                                        <button type="button" class="btn btn-sm btn-outline-secondary katakana-btn mb-1">ラ</button>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary katakana-btn mb-1">リ</button>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary katakana-btn mb-1">ル</button>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary katakana-btn mb-1">レ</button>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary katakana-btn mb-1">ロ</button>
+                                    </div>
+
+                                    <!-- 「ワ」行 -->
+                                    <div class="katakana-column me-1">
+                                        <button type="button" class="btn btn-sm btn-outline-secondary katakana-btn mb-1">ワ</button>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary katakana-btn mb-1">ヲ</button>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary katakana-btn mb-1">ン</button>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary katakana-btn mb-1">ッ</button>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary katakana-btn mb-1">ー</button>
+                                    </div>
+
+                                    <!-- 濁音・半濁音 -->
+                                    <div class="katakana-column me-1">
+                                        <button type="button" class="btn btn-sm btn-outline-secondary katakana-btn mb-1">ガ</button>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary katakana-btn mb-1">ギ</button>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary katakana-btn mb-1">グ</button>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary katakana-btn mb-1">ゲ</button>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary katakana-btn mb-1">ゴ</button>
+                                    </div>
+
+                                    <div class="katakana-column me-1">
+                                        <button type="button" class="btn btn-sm btn-outline-secondary katakana-btn mb-1">ザ</button>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary katakana-btn mb-1">ジ</button>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary katakana-btn mb-1">ズ</button>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary katakana-btn mb-1">ゼ</button>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary katakana-btn mb-1">ゾ</button>
+                                    </div>
+
+                                    <div class="katakana-column me-1">
+                                        <button type="button" class="btn btn-sm btn-outline-secondary katakana-btn mb-1">ダ</button>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary katakana-btn mb-1">ヂ</button>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary katakana-btn mb-1">ヅ</button>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary katakana-btn mb-1">デ</button>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary katakana-btn mb-1">ド</button>
+                                    </div>
+
+                                    <div class="katakana-column me-1">
+                                        <button type="button" class="btn btn-sm btn-outline-secondary katakana-btn mb-1">バ</button>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary katakana-btn mb-1">ビ</button>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary katakana-btn mb-1">ブ</button>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary katakana-btn mb-1">ベ</button>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary katakana-btn mb-1">ボ</button>
+                                    </div>
+
+                                    <div class="katakana-column me-1">
+                                        <button type="button" class="btn btn-sm btn-outline-secondary katakana-btn mb-1">パ</button>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary katakana-btn mb-1">ピ</button>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary katakana-btn mb-1">プ</button>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary katakana-btn mb-1">ペ</button>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary katakana-btn mb-1">ポ</button>
+                                    </div>
+
+                                    <!-- 小文字・特殊記号 -->
+                                    <div class="katakana-column me-1">
+                                        <button type="button" class="btn btn-sm btn-outline-secondary katakana-btn mb-1">ァ</button>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary katakana-btn mb-1">ィ</button>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary katakana-btn mb-1">ゥ</button>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary katakana-btn mb-1">ェ</button>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary katakana-btn mb-1">ォ</button>
+                                    </div>
+
+                                    <div class="katakana-column me-1">
+                                        <button type="button" class="btn btn-sm btn-outline-secondary katakana-btn mb-1">ャ</button>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary katakana-btn mb-1">ュ</button>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary katakana-btn mb-1">ョ</button>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary katakana-btn mb-1">・</button>
+                                        <button type="button" class="btn btn-sm btn-outline-danger katakana-btn mb-1">消去</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-12 mt-3">
+                            <!-- サジェスト表示 -->
+                            <div id="staff-suggestions" class="suggestions">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>地区No</th>
+                                            <th>所属No</th>
+                                            <th>所属名</th>
+                                            <th>担当者名</th>
+                                            <th>カタカナ</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="suggestions-body"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- 契約者情報セクション -->
+            <div class="card" style="z-index:0">
+                <div class="card-header section-header" style="background: var(--success-gradient);">
+                    <h5 class="mb-0">契約者情報</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label for="contractor_name" class="form-label">契約者</label>
+                            <input type="text" id="contractor_name" name="contractor_name" class="form-control" required lang="ja" lang-initial-inputmode="hiragana">
+                        </div>
+                        <div class="col-md-2">
+                            <label for="contractor_age" class="form-label">年齢</label>
+                            <input type="number" id="contractor_age" name="contractor_age" class="form-control">
+                        </div>
+                        <div class="col-md-3">
+                            <label for="contractor_relation" class="form-label">相手</label>
+                            <select id="contractor_relation" name="contractor_relation" class="form-select">
+                                <option value="">選択してください</option>
+                                <option value="主">主</option>
+                                <option value="奥">奥</option>
+                                <option value="同息">同息</option>
+                                <option value="同娘">同娘</option>
+                                <option value="別息">別息</option>
+                                <option value="別姪">別娘</option>
+                                <option value="法人">法人</option>
+                                <option value="神社仏閣">神社仏閣</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label for="contractor_tel" class="form-label">契約者TEL</label>
+                            <input type="tel" id="contractor_tel" name="contractor_tel" class="form-control">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 確認者情報セクション -->
+            <div class="card">
+                <div class="card-header section-header" style="background: var(--warning-gradient);">
+                    <h5 class="mb-0">確認者情報</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label for="confirmer_name" class="form-label">確認者</label>
+                            <input type="text" id="confirmer_name" name="confirmer_name" class="form-control" lang="ja" lang-initial-inputmode="hiragana">
+                        </div>
+                        <div class="col-md-2">
+                            <label for="confirmer_age" class="form-label">年齢</label>
+                            <input type="number" id="confirmer_age" name="confirmer_age" class="form-control">
+                        </div>
+                        <div class="col-md-3">
+                            <label for="confirmer_relation" class="form-label">相手</label>
+                            <select id="confirmer_relation" name="confirmer_relation" class="form-select">
+                                <option value="">選択してください</option>
+                                <option value="同息">同息</option>
+                                <option value="別息">別息</option>
+                                <option value="同娘">同娘</option>
+                                <option value="別娘">別娘</option>
+                                <option value="主">主</option>
+                                <option value="奥">奥</option>
+                                <option value="同嫁">同嫁</option>
+                                <option value="別嫁">別嫁</option>
+                                <option value="同婿">同婿</option>
+                                <option value="別婿">別婿</option>
+                                <option value="同甥">同甥</option>
+                                <option value="別甥">別甥</option>
+                                <option value="同姪">同姪</option>
+                                <option value="別姪">別姪</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label for="confirmer_tel" class="form-label">確認者TEL</label>
+                            <input type="tel" id="confirmer_tel" name="confirmer_tel" class="form-control">
+                        </div>
+                        <div class="col-md-3">
+                            <label for="category" class="form-label">区分</label>
+                            <select id="category" name="category" class="form-select">
+                                <option value="">選択してください</option>
+                                <option value="1">1</option>
+                                <option value="2">2</option>
+                                <option value="4">4</option>
+                                <option value="5">5</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label for="confirmer_date" class="form-label">確認日</label>
+                            <input type="text" id="confirmer_date" name="confirmer_date" class="form-control">
+                        </div>
+                        <div class="col-md-3">
+                            <label for="confirmer_time" class="form-label">確認時間</label>
+                            <input type="text" id="confirmer_time" name="confirmer_time" class="form-control">
+                        </div>
+                        <div class="col-md-3">
+                            <label for="confirmer_memo" class="form-label">確認メモ</label>
+                            <select id="confirmer_memo" name="confirmer_memo" class="form-select">
+                                <option value="">選択してください</option>
+                                <option value="担当待ち">担当待ち</option>
+                                <option value="直電">直電</option>
+                                <option value="同時">同時</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 商品情報セクション -->
+            <div class="card">
+                <div class="card-header section-header" style="background: linear-gradient(45deg, #6f42c1, #4e2a84);">
+                    <h5 class="mb-0">商品情報</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label for="product" class="form-label">商品名</label>
+                            <input type="text" id="product" name="product" class="form-control">
+                        </div>
+                        <div class="col-md-2">
+                            <label for="quantity" class="form-label">数量</label>
+                            <input type="text" id="quantity" name="quantity" class="form-control">
+                        </div>
+                        <div class="col-md-2">
+                            <label for="amount" class="form-label">金額（円）</label>
+                            <input type="number" id="amount" name="amount" class="form-control">
+                        </div>
+                        <div class="col-md-12 text-end">
+                            <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#productModal">
+                                商品選択
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 日程情報セクション -->
+            <div class="card">
+                <div class="card-header section-header" style="background: linear-gradient(45deg, #20c997, #17a2b8);">
+                    <h5 class="mb-0">日程情報</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-3">
+                            <label for="contract_date" class="form-label">契約予定日</label>
+                            <input type="text" id="contract_date" name="contract_date" class="form-control" lang="ja" lang-initial-inputmode="hiragana">
+                        </div>
+                        <div class="col-md-3">
+                            <label for="start_date" class="form-label">着工日</label>
+                            <input type="text" id="start_date" name="start_date" class="form-control" lang="ja" lang-initial-inputmode="hiragana" onchange="document.getElementById('completion_date').value = this.value;">
+                        </div>
+                        <div class="col-md-3">
+                            <label for="start_time" class="form-label">着工時間</label>
+                            <select id="start_time" name="start_time" class="form-select">
+                                <option value="">選択してください</option>
+                                <option value="AM">AM</option>
+                                <option value="PM">PM</option>
+                                <option value="通し">通し</option>
+                                <option value="・">・</option>
+                                <option value="~">~</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label for="completion_date" class="form-label">完工予定日</label>
+                            <input type="text" id="completion_date" name="completion_date" class="form-control" lang="ja" lang-initial-inputmode="hiragana">
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- その他情報セクション -->
+            <div class="card">
+                <div class="card-header section-header" style="background: linear-gradient(45deg, #fd7e14, #dc3545);">
+                    <h5 class="mb-0">その他情報</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label for="payment_method" class="form-label">支払方法</label>
+                            <select id="payment_method" name="payment_method" class="form-select">
+                                <option value="">選択してください</option>
+                                <option value="振込">振込</option>
+                                <option value="振替">振替</option>
+                                <option value="コンビニ">コンビニ</option>
+                                <option value="JA">JA</option>
+                                <option value="ローン">ローン</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="receiver" class="form-label">受付担当</label>
+                            <input type="text" id="receiver" name="receiver" class="form-control">
+                        </div>
+                        <div class="col-md-4">
+                            <label for="flyer" class="form-label">チラシ</label>
+                            <select id="flyer" name="flyer" class="form-select">
+                                <option value="4">4</option>
+                                <option value=""></option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="estimate_no" class="form-label">見積No</label>
+                            <input type="text" id="estimate_no" name="estimate_no" class="form-control">
+                        </div>
+                        <div class="col-md-8">
+                            <label for="notes" class="form-label">備考</label>
+                            <input type="text" id="notes" name="notes" class="form-control" lang="ja" lang-initial-inputmode="hiragana">
+                            <div class="mt-2">
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input notes-checkbox" type="checkbox" id="note-option1" value="名変">
+                                    <label class="form-check-label" for="note-option1">名変</label>
+                                </div>
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input notes-checkbox" type="checkbox" id="note-option2" value="平米数実測">
+                                    <label class="form-check-label" for="note-option2">平米数実測</label>
+                                </div>
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input notes-checkbox" type="checkbox" id="note-option3" value="見積">
+                                    <label class="form-check-label" for="note-option3">見積</label>
+                                </div>
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input notes-checkbox" type="checkbox" id="note-option4" value="他社併用">
+                                    <label class="form-check-label" for="note-option4">他社併用</label>
+                                </div>
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input notes-checkbox" type="checkbox" id="note-option5" value="他社撤去">
+                                    <label class="form-check-label" for="note-option5">他社撤去</label>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <label for="other_company" class="form-label">他社</label>
+                            <select id="other_company" name="other_company" class="form-select">
+                                <option value="0">0</option>
+                                <option value="1">1</option>
+                                <option value="2">2</option>
+                                <option value="3">3</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label for="history" class="form-label">履歴</label>
+                            <select id="history" name="history" class="form-select">
+                                <option value="0">0</option>
+                                <option value="1">1</option>
+                                <option value="2">2</option>
+                                <option value="3">3</option>
+                                <option value="4">4</option>
+
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label for="main_contract" class="form-label">本契約</label>
+                            <select id="main_contract" name="main_contract" class="form-select">
+                                <option value="1">1</option>
+                                <option value="0">0</option>
+                                <option value="2">2</option>
+                                <option value="3">3</option>
+                                <option value="4">4</option>
+                                <option value="5">5</option>
+                                <option value="6">6</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label for="total" class="form-label">計</label>
+                            <input type="number" id="total" name="total" class="form-control" readonly>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ボタングループ -->
+            <div class="text-center mt-4 mb-5">
+                <button type="button" class="btn btn-warning me-2" onclick="fillTestData()">テストデータ入力</button>
+                <button type="submit" class="btn btn-success me-2">送信</button>
+                <button type="reset" class="btn btn-secondary">クリア</button>
+            </div>
+        </form>
+    </div>
+
+    <!-- 商品選択モーダル -->
+    <div class="modal fade" id="productModal" tabindex="-1" aria-labelledby="productModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">商品選択・金額計算</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <!-- 商品選択エリア -->
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">カテゴリ</label>
+                            <select id="modalCategory" class="form-select"></select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">商品</label>
+                            <select id="modalProduct" class="form-select"></select>
+                        </div>
+                    </div>
+
+                    <!-- 数量入力エリア -->
+                    <div class="row mb-3" id="quantityFields">
+                        <div class="col-md-6">
+                            <label class="form-label">数量</label>
+                            <div class="input-group">
+                                <input type="number" id="modalQty" class="form-control" value="1" min="1">
+                                <span class="input-group-text" id="qtyUnit">坪</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 基礎関連の入力フィールド（初期状態では非表示） -->
+                    <div class="row mb-3" id="kisoFields" style="display: none;">
+                        <div class="col-md-4">
+                            <label class="form-label">高さ</label>
+                            <select id="modalHeight" class="form-select"></select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">長さ</label>
+                            <div class="input-group">
+                                <input type="number" id="modalLength" class="form-control" value="0" min="0" step="0.1">
+                                <span class="input-group-text" id="lengthUnit">m</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 共通の割引入力 -->
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">割引</label>
+                            <div class="input-group">
+                                <input type="number" id="modalDiscount" class="form-control" value="0" min="0">
+                                <span class="input-group-text">%/円</span>
+                                <div class="form-text text-muted">100未満は%割引、100以上は円割引</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- オプション選択エリア -->
+                    <div class="card mb-3">
+                        <div class="card-header">オプション</div>
+                        <div class="card-body" id="modalOptions">
+                            <!-- オプションがここに動的に追加されます -->
+                        </div>
+                    </div>
+
+                    <!-- 計算結果表示エリア -->
+                    <div class="card">
+                        <div class="card-header">計算結果</div>
+                        <div class="card-body">
+                            <div class="row mb-2">
+                                <div class="col-md-6">基本価格：</div>
+                                <div class="col-md-6 text-end" id="unitPrice">0円</div>
+                            </div>
+                            <div class="row mb-2">
+                                <div class="col-md-6">オプション価格：</div>
+                                <div class="col-md-6 text-end" id="optionPrice">0円</div>
+                            </div>
+                            <div class="row mb-2">
+                                <div class="col-md-6">小計（税抜）：</div>
+                                <div class="col-md-6 text-end" id="subtotalPrice">0円</div>
+                            </div>
+                            <div class="row mb-2">
+                                <div class="col-md-6">消費税（10%）：</div>
+                                <div class="col-md-6 text-end" id="taxAmount">0円</div>
+                            </div>
+                            <div class="row mb-2 fw-bold">
+                                <div class="col-md-6">合計（税込）：</div>
+                                <div class="col-md-6 text-end" id="totalPrice">0円</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 商品追加ボタン -->
+                    <div class="d-grid gap-2 mt-3">
+                        <button type="button" class="btn btn-success" id="addProductBtn">
+                            <i class="bi bi-plus-circle"></i> この商品を追加
+                        </button>
+                    </div>
+
+                    <!-- 選択された商品のサマリー表示 -->
+                    <div class="mt-4">
+                        <h6>選択商品リスト</h6>
+                        <ul id="summary-list" class="list-group">
+                            <!-- 選択された商品情報がここに表示されます -->
+                        </ul>
+                        
+                        <!-- 合計金額表示 -->
+                        <div class="card mt-3">
+                            <div class="card-header">合計金額</div>
+                            <div class="card-body" id="calculationTotal">
+                                <!-- 合計金額が表示されます -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">キャンセル</button>
+                    <button type="button" class="btn btn-primary" id="confirmProductBtn">決定</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- プロフィール設定モーダル -->
+    <div class="modal fade" id="profileModal" tabindex="-1" aria-labelledby="profileModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="profileModalLabel">プロフィール設定</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="modal-display-name" class="form-label">表示名（受付者欄に表示）</label>
+                        <input type="text" class="form-control" id="modal-display-name">
+                        <div class="form-text">入力した名前が受付者欄に自動的に設定されます</div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">キャンセル</button>
+                    <button type="button" class="btn btn-primary" id="save-profile-btn">保存</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL" crossorigin="anonymous"></script>
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <script src="form.js"></script>
+    <script src="productCalculator.js"></script>
+    
+    <!-- カタカナボード初期化スクリプト -->
+    <script>
+        // 担当者データのロード
+        let staffList = [];
+        
+        // グローバルスコープに選択処理関数を公開
+        function selectStaff(element) {
+            const districtNo = element.dataset.district;
+            const departmentNo = element.dataset.department;
+            const departmentName = element.dataset.departmentName;
+            const fullName = element.dataset.name;
+            
+            // 氏名から苗字のみを抽出（スペース区切り）
+            // 名前が空白で区切られている場合は最初の部分を姓として使用、そうでなければ全体を使用
+            const lastName = fullName.includes(' ') ? fullName.split(' ')[0] : fullName;
+            
+            // カタカナ名を取得するため、TRから値を取得
+            const cells = element.getElementsByTagName('td');
+            const katakanaNam = cells[4]?.innerText || ''; // 5番目のセル（インデックス4）にカタカナ名がある
+            
+            // メインフォームの入力欄に値を設定
+            document.getElementById('staff_name').value = lastName; // 苗字のみを設定
+            document.getElementById('district_no').value = districtNo;
+            document.getElementById('department_no').value = departmentNo;
+            document.getElementById('department_name').value = departmentName;
+
+            // サジェスト表示を非表示
+            document.getElementById('staff-suggestions').classList.remove('active');
+
+            // 入力完了スタイルを適用
+            document.getElementById('staff_name').classList.add('is-valid');
+            document.getElementById('district_no').classList.add('is-valid');
+            document.getElementById('department_no').classList.add('is-valid');
+            document.getElementById('department_name').classList.add('is-valid');
+            
+            // 選択された担当者情報をグローバル変数に保存（商品モーダルでの利用のため）
+            window.selectedStaff = {
+                districtNo: districtNo,
+                departmentNo: departmentNo,
+                departmentName: departmentName,
+                fullName: fullName,
+                katakanaNam: katakanaNam,
+                lastName: lastName
+            };
+            
+            // デバッグ用
+            console.log('Selected staff from inline script:', {
+                name: fullName,
+                lastName: lastName,
+                katakana: katakanaNam,
+                district: districtNo,
+                department: departmentNo,
+                departmentName: departmentName
+            });
+        }
+        
+        // 初期化処理
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('Running inline initialization...');
+            
+            // JSONファイルから担当者データを直接読み込む
+            fetch('staff.json')
+                .then(response => response.json())
+                .then(data => {
+                    console.log('staff.json loaded directly:', data.staffList.length);
+                    
+                    // グローバル変数に保存
+                    window.staffList = data.staffList;
+                    staffList = data.staffList;
+                    
+                    // 初期データの表示を実行
+                    displayInitialSuggestions();
+                    
+                    // スタッフ名入力フィールドの設定
+                    const staffNameInput = document.getElementById('staff_name');
+                    if (staffNameInput) {
+                        console.log('Adding direct input event handler to staff_name field');
+                        
+                        // 既にリスナーがない場合のみ追加
+                        if (!staffNameInput._hasSearchListener) {
+                            staffNameInput.addEventListener('input', function() {
+                                searchStaff(this.value);
+                            });
+                            
+                            // フォーカスイベントリスナーを追加
+                            staffNameInput.addEventListener('focus', function() {
+                                const staffSuggestions = document.getElementById('staff-suggestions');
+                                if (staffSuggestions) {
+                                    staffSuggestions.classList.add('active');
+                                    if (!this.value.trim()) {
+                                        displayInitialSuggestions();
+                                    } else {
+                                        searchStaff(this.value);
+                                    }
+                                }
+                            });
+                            
+                            // フラグを設定して重複登録を防止
+                            staffNameInput._hasSearchListener = true;
+                        }
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading staff.json directly:', error);
+                });
+            
+            // ページロード後に少し遅延してカタカナボードを初期化
+            setTimeout(function() {
+                // カタカナボタンに直接クリックイベントを設定
+                document.querySelectorAll('.katakana-btn').forEach(function(button) {
+                    button.onclick = function(event) {
+                        const staffNameInput = document.getElementById('staff_name');
+                        const buttonText = this.textContent;
+                        
+                        console.log('Direct katakana button clicked:', buttonText);
+                        
+                        if (buttonText === '消去') {
+                            // 末尾の1文字だけを削除する
+                            const currentValue = staffNameInput.value;
+                            if (currentValue.length > 0) {
+                                staffNameInput.value = currentValue.slice(0, -1);
+                            }
+                        } else if (buttonText.trim() !== '') {
+                            staffNameInput.value += buttonText;
+                        }
+                        
+                        // 入力変更後に直接検索を実行
+                        searchStaff(staffNameInput.value);
+                        
+                        // サジェストを強制的に表示
+                        const staffSuggestions = document.getElementById('staff-suggestions');
+                        if (staffSuggestions) {
+                            staffSuggestions.classList.add('active');
+                            console.log('Suggestions display activated from button click');
+                        }
+                        
+                        staffNameInput.focus();
+                        
+                        event.preventDefault();
+                        event.stopPropagation();
+                        return false;
+                    };
+                });
+                
+                console.log('Direct katakana button initialization complete');
+            }, 300);
+        });
+        
+        // 担当者検索関数
+        function searchStaff(input) {
+            console.log('searchStaff called with input:', input);
+            input = input.trim();
+            
+            const suggestionsBody = document.getElementById('suggestions-body');
+            const staffSuggestions = document.getElementById('staff-suggestions');
+            
+            if (!suggestionsBody || !staffSuggestions) {
+                console.warn('Suggestions elements not found');
+                return;
+            }
+            
+            // サジェスト表示領域を必ず表示
+            staffSuggestions.classList.add('active');
+            
+            // スタッフリストが空の場合はエラーメッセージを表示
+            if (!window.staffList || !Array.isArray(window.staffList) || window.staffList.length === 0) {
+                console.error('No staff data available for search');
+                suggestionsBody.innerHTML = '<tr><td colspan="5" class="text-danger">担当者データが読み込まれていません</td></tr>';
+                return;
+            }
+            
+            // 入力がない場合は初期データを表示
+            if (!input) {
+                displayInitialSuggestions();
+                return;
+            }
+            
+            // カタカナ以外の入力を許可する（警告表示は残す）
+            let warningMessage = '';
+            if (!/^[\u30A0-\u30FF\s]+$/.test(input) && input !== '') {
+                warningMessage = '<tr><td colspan="5" class="text-warning">カタカナで入力してください</td></tr>';
+            }
+            
+            // 検索処理を実行
+            const matchedStaff = window.staffList.filter(staff => {
+                if (!staff.katakanaNam) return false;
+                return staff.katakanaNam.includes(input);
+            });
+            
+            console.log(`Searching for "${input}" - found ${matchedStaff.length} matches`);
+            
+            if (matchedStaff && matchedStaff.length > 0) {
+                // まず完全一致
+                const exactMatches = matchedStaff.filter(staff => staff.katakanaNam === input);
+                
+                // 次に前方一致（入力文字で始まるもの）
+                const prefixMatches = matchedStaff.filter(staff => 
+                    staff.katakanaNam.startsWith(input) && staff.katakanaNam !== input);
+                
+                // 最後に部分一致（前方一致以外）
+                const partialMatches = matchedStaff.filter(staff => 
+                    !staff.katakanaNam.startsWith(input) && staff.katakanaNam !== input);
+                
+                // 優先順位に従って結合
+                const sortedMatches = [...exactMatches, ...prefixMatches, ...partialMatches];
+                
+                // 結果を表示（最大20件）
+                const limitedMatches = sortedMatches.slice(0, 20);
+                
+                suggestionsBody.innerHTML = limitedMatches.map(staff => `
+                    <tr onclick="selectStaff(this)" 
+                        data-district="${staff.districtNo || ''}"
+                        data-department="${staff.departmentNo || ''}"
+                        data-department-name="${staff.shozokuMei || ''}"
+                        data-name="${staff.staffName || ''}">
+                    <td>${staff.districtNo || ''}</td>
+                    <td>${staff.departmentNo || ''}</td>
+                    <td>${staff.shozokuMei || ''}</td>
+                    <td>${staff.staffName || ''}</td>
+                    <td>${staff.katakanaNam || ''}</td>
+                    </tr>
+                `).join('');
+                console.log(`Displaying ${limitedMatches.length} matches for "${input}"`);
+            } else {
+                suggestionsBody.innerHTML = warningMessage || '<tr><td colspan="5">該当する担当者はいません</td></tr>';
+            }
+        }
+        
+        // サジェスト表示関数
+        function showSuggestions() {
+            const staffSuggestions = document.getElementById('staff-suggestions');
+            if (staffSuggestions) {
+                staffSuggestions.classList.add('active');
+                console.log('Suggestions display activated');
+            }
+        }
+        
+        // 初期サジェストデータ表示
+        function displayInitialSuggestions() {
+            try {
+                // スタッフリストが読み込まれているか確認
+                if (typeof window.staffList !== 'undefined' && window.staffList.length > 0) {
+                    console.log('Staff list found, displaying initial suggestions');
+                    const suggestionsBody = document.getElementById('suggestions-body');
+                    const staffSuggestions = document.getElementById('staff-suggestions');
+                    
+                    if (suggestionsBody && staffSuggestions) {
+                        // 最大20名まで表示
+                        const initialData = window.staffList.slice(0, 20);
+                        
+                        staffSuggestions.classList.add('active');
+                        suggestionsBody.innerHTML = initialData.map(staff => `
+                            <tr onclick="selectStaff(this)" 
+                                data-district="${staff.districtNo || ''}"
+                                data-department="${staff.departmentNo || ''}"
+                                data-department-name="${staff.shozokuMei || ''}"
+                                data-name="${staff.staffName || ''}">
+                            <td>${staff.districtNo || ''}</td>
+                            <td>${staff.departmentNo || ''}</td>
+                            <td>${staff.shozokuMei || ''}</td>
+                            <td>${staff.staffName || ''}</td>
+                            <td>${staff.katakanaNam || ''}</td>
+                            </tr>
+                        `).join('');
+                        
+                        console.log('Initial staff suggestions displayed:', initialData.length);
+                    } else {
+                        console.warn('Suggestions elements not found');
+                    }
+                } else {
+                    console.warn('Staff list not available yet, will be loaded by form.js');
+                }
+            } catch (error) {
+                console.error('Error loading initial suggestions:', error);
+            }
+        }
+    </script>
+    
+    <!-- ログアウト処理 -->
+    <script type="module">
+        import { getAuth, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+        
+        document.getElementById('logout-btn').addEventListener('click', () => {
+            const auth = getAuth();
+            signOut(auth).then(() => {
+                window.location.href = 'login.html';
+            }).catch((error) => {
+                console.error('ログアウトエラー:', error);
+            });
+        });
+    </script>
+
+    <!-- プロフィール処理 -->
+    <script type="module">
+        import { getAuth, updateProfile } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+        import { getFirestore, doc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+        
+        // プロフィールボタンクリック時の処理
+        document.getElementById('profile-btn').addEventListener('click', () => {
+            const authInstance = getAuth();
+            const user = authInstance.currentUser;
+            
+            if (user) {
+                console.log('現在のユーザー:', user);
+                // 現在の表示名をモーダルにセット
+                document.getElementById('modal-display-name').value = user.displayName || '';
+                
+                // モーダル表示
+                const profileModal = new bootstrap.Modal(document.getElementById('profileModal'));
+                profileModal.show();
+            } else {
+                console.error('ユーザーがログインしていません');
+                alert('ユーザー情報を取得できません。再ログインしてください。');
+            }
+        });
+        
+        // プロフィール保存ボタンの処理
+        document.getElementById('save-profile-btn').addEventListener('click', async () => {
+            const authInstance = getAuth();
+            const dbInstance = getFirestore();
+            const user = authInstance.currentUser;
+            
+            if (user) {
+                const displayName = document.getElementById('modal-display-name').value.trim();
+                
+                if (displayName) {
+                    try {
+                        console.log('プロフィール更新開始:', displayName);
+                        
+                        // Auth表示名を更新
+                        await updateProfile(user, { displayName });
+                        console.log('Auth表示名を更新しました');
+                        
+                        // Firestoreのユーザー情報も更新
+                        const userDocRef = doc(dbInstance, "users", user.uid);
+                        await setDoc(userDocRef, {
+                            displayName: displayName,
+                            email: user.email,
+                            updatedAt: serverTimestamp()
+                        }, { merge: true });
+                        console.log('Firestoreデータを更新しました');
+                        
+                        // 受付者欄に反映
+                        document.getElementById('receiver').value = displayName;
+                        document.getElementById('receiver').classList.add('is-valid');
+                        
+                        // モーダルを閉じる
+                        const modal = bootstrap.Modal.getInstance(document.getElementById('profileModal'));
+                        modal.hide();
+                        
+                        alert('プロフィールを更新しました');
+                        
+                        // ページをリロードして変更を反映
+                        window.location.reload();
+                    } catch (error) {
+                        console.error('プロフィール更新エラー:', error);
+                        alert('プロフィールの更新に失敗しました: ' + error.message);
+                    }
+                } else {
+                    alert('表示名を入力してください');
+                }
+            } else {
+                console.error('ユーザーがログインしていません');
+                alert('ユーザー情報を取得できません。再ログインしてください。');
+            }
+        });
+    </script>
+
+    <!-- ひらがな入力の強制設定 -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // 日本語入力フィールドの初期化
+            const japaneseInputs = document.querySelectorAll('input[lang="ja"], textarea[lang="ja"]');
+            
+            // 各入力フィールドにフォーカスイベントを設定
+            japaneseInputs.forEach(input => {
+                input.addEventListener('focus', function() {
+                    // IMEモードをひらがなに設定
+                    if (this.getAttribute('type') !== 'date' && this.getAttribute('type') !== 'time') {
+                        setTimeout(() => {
+                            // フォーカス後に少し遅延させてIMEモードを設定
+                            this.style.imeMode = 'active';
+                            
+                            // Chromeの場合
+                            if ('InputMethodContext' in window) {
+                                const inputMethodContext = new InputMethodContext(this);
+                                inputMethodContext.compositionMode = 'on';
+                            }
+                        }, 10);
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>

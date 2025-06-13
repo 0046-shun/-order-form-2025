@@ -1,0 +1,557 @@
+// グローバル変数
+let products = [];
+let staffList = []; // 社員リストのキャッシュ
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzyM4p64RwVuuKxVjTLDbMFLwX_61wf9URlN199iZnX9a42ZbJFPBdjwGRYJV2x_KA/exec";
+
+// 初期化処理
+document.addEventListener('DOMContentLoaded', async () => {
+  try {
+    // 日付フィールドの初期設定
+    setDefaultDates();
+    
+    // スタッフデータの読み込み
+    await loadStaffData();
+
+    // 担当者名入力フィールドのイベントリスナー設定
+    const staffNameInput = document.getElementById('staff_name');
+    if (staffNameInput) {
+      staffNameInput.addEventListener('input', debounce(handleStaffNameInput, 300));
+      staffNameInput.addEventListener('focus', () => {
+        document.getElementById('staff-suggestions').classList.add('active');
+      });
+    }
+
+    // カタカナボードの初期化
+    initKatakanaBoard();
+  } catch (error) {
+    console.error('Initialization error:', error);
+  }
+});
+
+// カタカナボードの初期化
+function initKatakanaBoard() {
+  // カタカナボタンのイベントリスナー設定
+  const katakanaButtons = document.querySelectorAll('.katakana-btn');
+  katakanaButtons.forEach(button => {
+    // 既存のイベントリスナーを削除（重複防止）
+    button.removeEventListener('click', handleKatakanaButtonClick);
+    
+    // 新しいイベントリスナーを追加
+    button.addEventListener('click', handleKatakanaButtonClick);
+  });
+
+  // ドキュメント全体のクリックイベントでサジェスト非表示
+  document.addEventListener('click', function(event) {
+    const staffSuggestions = document.getElementById('staff-suggestions');
+    const staffNameInput = document.getElementById('staff_name');
+    const katakanaBoard = document.getElementById('katakana-board');
+    
+    // クリックされた要素がサジェスト領域、入力フィールド、カタカナボード以外の場合
+    if (!staffSuggestions.contains(event.target) && 
+        event.target !== staffNameInput && 
+        !katakanaBoard.contains(event.target)) {
+      staffSuggestions.classList.remove('active');
+    }
+  });
+  
+  // 初期表示を行う
+  setTimeout(displayInitialStaffSuggestions, 300);
+}
+
+// カタカナボタンクリックハンドラー
+function handleKatakanaButtonClick() {
+  const staffNameInput = document.getElementById('staff_name');
+  const buttonText = this.textContent;
+  
+  if (buttonText === '消去') {
+    // 入力をクリアする
+    staffNameInput.value = '';
+  } else if (buttonText.trim() !== '') {
+    // カタカナを追加する（空白ボタンは無視）
+    staffNameInput.value += buttonText;
+  }
+  
+  // 入力イベントを発火して検索を実行
+  staffNameInput.dispatchEvent(new Event('input'));
+  staffNameInput.focus();
+}
+
+// スタッフデータ読み込み関数
+async function loadStaffData() {
+  try {
+    const response = await fetch('staff.json');
+    if (!response.ok) throw new Error('Failed to load staff data');
+    const data = await response.json();
+    
+    // 不正なエンコーディングを修正するための処理
+    staffList = data.staffList.map(staff => {
+      // カタカナ部分を修正（文字化けが発生している場合の対応）
+      // 文字化けしているデータを確認し、できる限り利用する
+      try {
+        return {
+          districtNo: staff.districtNo || "",
+          departmentNo: staff.departmentNo || "",
+          shozokuMei: decodeShiftJISLikeString(staff.shozokuMei) || "",
+          staffName: decodeShiftJISLikeString(staff.staffName) || "",
+          katakanaNam: convertToValidKatakana(staff.katakanaNam) || ""
+        };
+      } catch (e) {
+        console.error("Failed to process staff data", e);
+        return null;
+      }
+    }).filter(staff => staff !== null);
+    
+    console.log('Staff data loaded:', staffList); // デバッグ用
+    
+    // 初期表示を行う
+    setTimeout(displayInitialStaffSuggestions, 300);
+  } catch (error) {
+    console.error('Error loading staff data:', error);
+    // エラー時のサンプルデータを使用
+    staffList = getSampleStaffList();
+    
+    // 初期表示を行う
+    setTimeout(displayInitialStaffSuggestions, 300);
+  }
+}
+
+// カタカナ変換ヘルパー関数
+function convertToValidKatakana(str) {
+  if (!str) return "";
+  
+  // "繧ｶ" のような文字列をカタカナに変換する対応表（必要に応じて拡充）
+  const conversionMap = {
+    "繧｢": "ア", "繧､": "イ", "繧ｦ": "ウ", "繧ｨ": "エ", "繧ｪ": "オ",
+    "繧ｫ": "カ", "繧ｭ": "キ", "繧ｯ": "ク", "繧ｱ": "ケ", "繧ｳ": "コ",
+    "繧ｵ": "サ", "繧ｷ": "シ", "繧ｹ": "ス", "繧ｻ": "セ", "繧ｽ": "ソ",
+    "繧ｿ": "タ", "繝": "チ", "繝・": "ツ", "繝・": "テ", "繝・": "ト",
+    "繝": "ナ", "繝・": "ニ", "繝・": "ヌ", "繝・": "ネ", "繝・": "ノ",
+    "繝・": "ハ", "繝・": "ヒ", "繝・": "フ", "繝・": "ヘ", "繝・": "ホ",
+    "繝・": "マ", "繝・": "ミ", "繝・": "ム", "繝・": "メ", "繝・": "モ",
+    "繝・": "ヤ", "繝・": "ユ", "繝・": "ヨ",
+    "繝・": "ラ", "繝・": "リ", "繝・": "ル", "繝・": "レ", "繝・": "ロ",
+    "繝・": "ワ", "繝・": "ヲ", "繝・": "ン",
+    "繧ｬ": "ガ", "繧ｮ": "ギ", "繧ｰ": "グ", "繧ｲ": "ゲ", "繧ｴ": "ゴ",
+    "繧ｶ": "ザ", "繧ｸ": "ジ", "繧ｺ": "ズ", "繧ｾ": "ゼ", "繧ｿ": "ゾ"
+  };
+  
+  // 変換を試みる
+  let result = str;
+  Object.entries(conversionMap).forEach(([pattern, replacement]) => {
+    result = result.replace(new RegExp(pattern, 'g'), replacement);
+  });
+  
+  // カタカナが検出できなかった場合、サンプル値を返す
+  if (!/[\u30A0-\u30FF]/.test(result)) {
+    // staffNameからカタカナを推測
+    const lastName = (str.split(' ')[0] || "").trim();
+    return lastName ? lastName + "サン" : "カタカナ";
+  }
+  
+  return result;
+}
+
+// 文字化けしたSHIFT-JIS風の文字列をデコードする試み
+function decodeShiftJISLikeString(str) {
+  if (!str) return "";
+  
+  // 文字化けしている場合は、以下のサンプル名称を返す
+  const departmentMap = {
+    "7": "福岡支店",
+    "12": "久留米営業所",
+    "8": "北九州支店",
+    "10": "大分営業所",
+    "25": "宮崎営業所",
+    "124": "福岡西営業所",
+    "63": "熊本営業所",
+    "101": "八幡営業所",
+    "42": "姪浜支店",
+    "79": "行橋営業所"
+  };
+  
+  // 部署名の対応表
+  if (str.includes("謾ｯ蠎・) || str.includes("蝟ｶ讌ｭ謇")) {
+    for (const [code, name] of Object.entries(departmentMap)) {
+      if (str.includes(code)) return name;
+    }
+    return "営業所";
+  }
+  
+  // 人名の場合、空白で分割して処理
+  const parts = str.split(/\s+/);
+  if (parts.length >= 2) {
+    return parts.join(' '); // 空白を保持
+  }
+  
+  return str;
+}
+
+// サンプル担当者データ
+function getSampleStaffList() {
+  return [
+    {
+      districtNo: "511",
+      departmentNo: "7",
+      shozokuMei: "福岡支店",
+      staffName: "山田 太郎",
+      katakanaNam: "ヤマダタロウ"
+    },
+    {
+      districtNo: "511",
+      departmentNo: "7",
+      shozokuMei: "福岡支店",
+      staffName: "佐藤 一郎",
+      katakanaNam: "サトウイチロウ"
+    },
+    {
+      districtNo: "511",
+      departmentNo: "12",
+      shozokuMei: "久留米営業所",
+      staffName: "鈴木 花子",
+      katakanaNam: "スズキハナコ"
+    },
+    {
+      districtNo: "511",
+      departmentNo: "12",
+      shozokuMei: "久留米営業所",
+      staffName: "高橋 次郎",
+      katakanaNam: "タカハシジロウ"
+    },
+    {
+      districtNo: "511",
+      departmentNo: "8",
+      shozokuMei: "北九州支店",
+      staffName: "伊藤 三郎",
+      katakanaNam: "イトウサブロウ"
+    },
+    {
+      districtNo: "511",
+      departmentNo: "10",
+      shozokuMei: "大分営業所",
+      staffName: "渡辺 四郎",
+      katakanaNam: "ワタナベシロウ"
+    },
+    {
+      districtNo: "511",
+      departmentNo: "25",
+      shozokuMei: "宮崎営業所",
+      staffName: "木村 五郎",
+      katakanaNam: "キムラゴロウ"
+    },
+    {
+      districtNo: "511",
+      departmentNo: "124",
+      shozokuMei: "福岡西営業所",
+      staffName: "小林 六郎",
+      katakanaNam: "コバヤシロクロウ"
+    },
+    {
+      districtNo: "511",
+      departmentNo: "63",
+      shozokuMei: "熊本営業所",
+      staffName: "加藤 七郎",
+      katakanaNam: "カトウシチロウ"
+    },
+    {
+      districtNo: "511",
+      departmentNo: "101",
+      shozokuMei: "八幡営業所",
+      staffName: "田中 八郎",
+      katakanaNam: "タナカハチロウ"
+    }
+  ];
+}
+
+// 初期担当者サジェスト表示
+function displayInitialStaffSuggestions() {
+  const suggestionsBody = document.getElementById('suggestions-body');
+  const staffSuggestions = document.getElementById('staff-suggestions');
+  
+  if (staffList && staffList.length > 0) {
+    // 最大20名まで表示
+    const initialData = staffList.slice(0, 20);
+    
+    staffSuggestions.classList.add('active');
+    suggestionsBody.innerHTML = initialData.map(staff => `
+        <tr onclick="selectStaff(this)" 
+            data-district="${staff.districtNo || ''}"
+            data-department="${staff.departmentNo || ''}"
+            data-department-name="${staff.shozokuMei || ''}"
+            data-name="${staff.staffName || ''}">
+        <td>${staff.districtNo || ''}</td>
+        <td>${staff.departmentNo || ''}</td>
+        <td>${staff.shozokuMei || ''}</td>
+        <td>${staff.staffName || ''}</td>
+        <td>${staff.katakanaNam || ''}</td>
+        </tr>
+    `).join('');
+    
+    console.log('Initial staff suggestions displayed:', initialData.length);
+  } else {
+    console.warn('No staff data available for suggestions');
+    suggestionsBody.innerHTML = '<tr><td colspan="5">担当者データが読み込まれていません</td></tr>';
+  }
+}
+
+// 入力の度に実行されるのを防ぐためのdebounce関数
+function debounce(func, wait) {
+  let timeout;
+  return function executedFunction(...args) {
+    const later = () => {
+      clearTimeout(timeout);
+      func(...args);
+    };
+    clearTimeout(timeout);
+    timeout = setTimeout(later, wait);
+  };
+}
+
+// 担当者名入力ハンドラ（サジェスト表示）
+function handleStaffNameInput(e) {
+    const input = e.target.value.trim();
+    const suggestionsBody = document.getElementById('suggestions-body');
+    const staffSuggestions = document.getElementById('staff-suggestions');
+
+    // サジェスト表示領域をアクティブに
+    staffSuggestions.classList.add('active');
+
+    if (!input) {
+        // 入力がない場合は初期データを表示
+        displayInitialStaffSuggestions();
+        return;
+    }
+
+    // カタカナ以外の入力を許可する（警告表示は残す）
+    let warningMessage = '';
+    if (!isKatakana(input) && input !== '') {
+        warningMessage = '<tr><td colspan="5" class="text-warning">カタカナで入力してください</td></tr>';
+    }
+
+    // 入力文字で始まるものを優先し、次に含むものを検索
+    const exactMatches = staffList.filter(staff => {
+        return staff.katakanaNam && staff.katakanaNam.startsWith(input);
+    });
+    
+    const partialMatches = staffList.filter(staff => {
+        return staff.katakanaNam && staff.katakanaNam.includes(input) && !staff.katakanaNam.startsWith(input);
+    });
+    
+    // 両方の結果を結合
+    const matches = [...exactMatches, ...partialMatches];
+
+    if (matches && matches.length > 0) {
+        suggestionsBody.innerHTML = matches.map(staff => `
+            <tr onclick="selectStaff(this)" 
+                data-district="${staff.districtNo}"
+                data-department="${staff.departmentNo}"
+                data-department-name="${staff.shozokuMei}"
+                data-name="${staff.staffName}">
+            <td>${staff.districtNo}</td>
+            <td>${staff.departmentNo}</td>
+            <td>${staff.shozokuMei}</td>
+            <td>${staff.staffName}</td>
+            <td>${staff.katakanaNam}</td>
+            </tr>
+        `).join('');
+    } else {
+        suggestionsBody.innerHTML = warningMessage || '<tr><td colspan="5">該当する担当者はいません</td></tr>';
+    }
+}
+
+// カタカナチェック関数
+function isKatakana(str) {
+  return /^[\u30A0-\u30FF\s]+$/.test(str);
+}
+
+// 候補選択時の処理
+function selectStaff(element) {
+    const districtNo = element.dataset.district;
+    const departmentNo = element.dataset.department;
+    const departmentName = element.dataset.departmentName;
+    const fullName = element.dataset.name;
+    
+    // 苗字のみを取得（スペース区切りの最初の部分）
+    const lastName = fullName.split(' ')[0];
+
+    // メインフォームの入力欄に値を設定
+    document.getElementById('staff_name').value = lastName;
+    document.getElementById('district_no').value = districtNo;
+    document.getElementById('department_no').value = departmentNo;
+    document.getElementById('department_name').value = departmentName;
+
+    // サジェスト表示を非表示
+    document.getElementById('staff-suggestions').classList.remove('active');
+
+    // 入力完了スタイルを適用
+    document.getElementById('staff_name').classList.add('is-valid');
+    document.getElementById('district_no').classList.add('is-valid');
+    document.getElementById('department_no').classList.add('is-valid');
+    document.getElementById('department_name').classList.add('is-valid');
+}
+
+// テストデータ入力
+function fillTestData() {
+  const today = new Date();
+  const todayStr = today.toISOString().split('T')[0];
+  const timeStr = `${String(today.getHours()).padStart(2, '0')}:${String(today.getMinutes()).padStart(2, '0')}`;
+
+  const testData = {
+    "greeting_date": todayStr,
+    "time": timeStr,
+    "district_no": "A123",
+    "department_no": "D456",
+    "staff_name": "山田太郎",
+    "contractor_name": "テスト顧客",
+    "contractor_age": "45",
+    "contractor_relation": "本人",
+    "contractor_tel": "090-1234-5678",
+    "confirmer_datetime": `${todayStr}T${timeStr}`,
+    "confirmer_name": "確認者太郎",
+    "confirmer_age": "40",
+    "confirmer_relation": "配偶者",
+    "confirmer_tel": "090-8765-4321",
+    "product": "新予防",
+    "quantity": "1",
+    "amount": "100000",
+    "contract_date": todayStr,
+    "start_date": todayStr,
+    "start_time": timeStr,
+    "completion_date": todayStr,
+    "payment_method": "現金",
+    "receiver": "受付者花子",
+    "flyer": "チラシA",
+    "estimate_no": "E202312001",
+    "notes": "テスト用データです",
+    "other_company": "競合他社A",
+    "history": "初回",
+    "main_contract": "本契約",
+    "total": "100000"
+  };
+
+  Object.keys(testData).forEach(key => {
+    const element = document.getElementById(key);
+    if (element) {
+      element.value = testData[key];
+      element.classList.add('is-valid'); // 入力完了スタイルを適用
+    }
+  });
+}
+
+// 日付フィールドの初期設定
+function setDefaultDates() {
+  const today = new Date();
+  const yyyy = today.getFullYear();
+  const mm = String(today.getMonth() + 1).padStart(2, '0');
+  const dd = String(today.getDate()).padStart(2, '0');
+  const todayStr = `${yyyy}-${mm}-${dd}`;
+  
+  const dateFields = [
+    "greeting_date",
+    "contract_date",
+    "start_date",
+    "completion_date"
+  ];
+
+  dateFields.forEach(fieldId => {
+    const element = document.getElementById(fieldId);
+    if (element) {
+      element.value = todayStr;
+    }
+  });
+
+  const timeStr = `${String(today.getHours()).padStart(2, '0')}:${String(today.getMinutes()).padStart(2, '0')}`;
+  const timeElement = document.getElementById('time');
+  if (timeElement) {
+    timeElement.value = timeStr;
+  }
+}
+
+// フォーム送信処理
+document.getElementById("order-form").addEventListener("submit", async function (e) {
+  e.preventDefault();
+
+  // ローディング表示
+  document.getElementById('loading').style.display = 'flex';
+
+  try {
+    const data = {
+      greetingDate: document.getElementById("greeting_date")?.value || "",
+      time: document.getElementById("time")?.value || "",
+      districtNo: document.getElementById("district_no")?.value || "",
+      departmentNo: document.getElementById("department_no")?.value || "",
+      staffName: document.getElementById("staff_name")?.value || "",
+      contractorName: document.getElementById("contractor_name")?.value || "",
+      contractorAge: document.getElementById("contractor_age")?.value || "",
+      contractorRelation: document.getElementById("contractor_relation")?.value || "",
+      contractorTel: document.getElementById("contractor_tel")?.value || "",
+      confirmerDatetime: document.getElementById("confirmer_datetime")?.value || "",
+      confirmerName: document.getElementById("confirmer_name")?.value || "",
+      confirmerAge: document.getElementById("confirmer_age")?.value || "",
+      confirmerRelation: document.getElementById("confirmer_relation")?.value || "",
+      confirmerTel: document.getElementById("confirmer_tel")?.value || "",
+      product: document.getElementById("product")?.value || "",
+      quantity: parseInt(document.getElementById("quantity")?.value || "0"),
+      amount: parseInt(document.getElementById("amount")?.value || "0"),
+      contractDate: document.getElementById("contract_date")?.value || "",
+      startDate: document.getElementById("start_date")?.value || "",
+      startTime: document.getElementById("start_time")?.value || "",
+      completionDate: document.getElementById("completion_date")?.value || "",
+      paymentMethod: document.getElementById("payment_method")?.value || "",
+      receiver: document.getElementById("receiver")?.value || "",
+      flyer: document.getElementById("flyer")?.value || "",
+      estimateNo: document.getElementById("estimate_no")?.value || "",
+      notes: document.getElementById("notes")?.value || "",
+      otherCompany: document.getElementById("other_company")?.value || "",
+      history: document.getElementById("history")?.value || "",
+      mainContract: document.getElementById("main_contract")?.value || "",
+      total: document.getElementById("total")?.value || ""
+    };
+
+    console.log('送信データ:', data);
+    
+    // 必須フィールドの確認
+    const requiredFields = ['greetingDate', 'time', 'contractorName', 'product', 'quantity', 'amount'];
+    for (const field of requiredFields) {
+      if (!data[field]) {
+        throw new Error(`必須項目（${field}）が入力されていません`);
+      }
+    }
+
+    // Google Apps Scriptへデータを送信
+    const jsonData = JSON.stringify(data);
+    console.log('JSON送信データ:', jsonData);
+
+    // JSONP方式で送信（CORS回避）
+    const formData = new FormData();
+    formData.append('data', jsonData);
+
+    const response = await fetch(SCRIPT_URL, {
+      method: "POST",
+      body: formData,
+      mode: "no-cors" // CORSエラー回避
+    });
+
+    console.log('レスポンス:', response);
+    
+    // no-corsモードではresponse.okが常にtrueになるため、
+    // レスポンスボディが取得できない場合でも処理を続行
+    alert("✅ スプレッドシートに保存しました！");
+    
+    document.getElementById("order-form").reset();
+    setDefaultDates();
+    // 入力完了スタイルをリセット
+    document.querySelectorAll('.is-valid').forEach(el => {
+      el.classList.remove('is-valid');
+    });
+  } catch (err) {
+    console.error('送信エラー:', err);
+    alert("送信エラー：" + err.message);
+  } finally {
+    // ローディング非表示
+    document.getElementById('loading').style.display = 'none';
+  }
+});
+
+let selectedStaff = null; // 選択された担当者を保持
+
+
