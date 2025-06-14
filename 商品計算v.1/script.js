@@ -825,14 +825,24 @@ class ProductModal {
         this.categorySelect.innerHTML = '<option value="">カテゴリを選択してください</option>';
         
         // 通常商品カテゴリ
-        Object.keys(window.productData || {}).forEach(category => {
-            if (category !== 'オプション') {
+        if (typeof productsData !== 'undefined') {
+            Object.keys(productsData).forEach(category => {
                 const option = document.createElement('option');
                 option.value = category;
                 option.textContent = category;
                 this.categorySelect.appendChild(option);
-            }
-        });
+            });
+        }
+
+        // 基礎関連カテゴリを追加
+        if (typeof kisoProductsData !== 'undefined') {
+            Object.keys(kisoProductsData).forEach(category => {
+                const option = document.createElement('option');
+                option.value = `kiso-${category}`;
+                option.textContent = `基礎：${category}`;
+                this.categorySelect.appendChild(option);
+            });
+        }
     }
 
     updateProductList() {
@@ -1080,5 +1090,57 @@ class ProductModal {
 
 // モーダルのインスタンスを作成
 const productModal = new ProductModal();
+
+function initCategorySelect() {
+    const categorySelect = document.getElementById('modalCategory');
+    categorySelect.innerHTML = '<option value="">カテゴリを選択してください</option>';
+
+    // 通常商品カテゴリ
+    if (typeof productsData !== 'undefined') {
+        Object.keys(productsData).forEach(category => {
+            const option = document.createElement('option');
+            option.value = category;
+            option.textContent = category;
+            categorySelect.appendChild(option);
+        });
+    }
+
+    // 基礎関連カテゴリを追加
+    if (typeof kisoProductsData !== 'undefined') {
+        Object.keys(kisoProductsData).forEach(category => {
+            const option = document.createElement('option');
+            option.value = `kiso-${category}`;
+            option.textContent = `基礎：${category}`;
+            categorySelect.appendChild(option);
+        });
+    }
+}
+
+function updateProductSelect(category) {
+    const productSelect = document.getElementById('modalProduct');
+    productSelect.innerHTML = '<option value="">商品を選択してください</option>';
+
+    // 基礎関連商品
+    if (category && category.startsWith('kiso-')) {
+        const kisoCategory = category.replace('kiso-', '');
+        if (typeof kisoProductsData !== 'undefined' && kisoProductsData[kisoCategory]) {
+            Object.keys(kisoProductsData[kisoCategory]).forEach(item => {
+                const option = document.createElement('option');
+                option.value = item;
+                option.textContent = item;
+                productSelect.appendChild(option);
+            });
+        }
+    } 
+    // 通常商品
+    else if (category && typeof productsData !== 'undefined' && productsData[category]) {
+        Object.keys(productsData[category]).forEach(item => {
+            const option = document.createElement('option');
+            option.value = item;
+            option.textContent = item;
+            productSelect.appendChild(option);
+        });
+    }
+}
 
 
