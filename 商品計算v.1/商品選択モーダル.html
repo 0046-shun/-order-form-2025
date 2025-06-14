@@ -180,7 +180,7 @@
                     <div class="row mb-3">
                         <div class="col-md-6">
                             <div class="form-check mb-2">
-                                <input class="form-check-input" type="checkbox" id="modalOverheadCheck">
+                                <input class="form-check-input" type="checkbox" id="modalOverheadCheck" checked>
                                 <label class="form-check-label" for="modalOverheadCheck">
                                     一般管理費（20,000円）を適用
                                 </label>
@@ -263,6 +263,14 @@
                 if (!category || !product || quantity <= 0) {
                     alert('カテゴリ、商品、数量を正しく入力してください。');
                     return;
+                }
+
+                // 基礎カテゴリの場合は高さ・長さ必須
+                if (category.startsWith('kiso-')) {
+                    if (!height || !length || length <= 0) {
+                        alert('基礎商品の場合は高さと長さを正しく入力してください。');
+                        return;
+                    }
                 }
 
                 // 商品データを取得
@@ -426,31 +434,13 @@
                     li.className = 'list-group-item d-flex justify-content-between align-items-center';
                     
                     // 商品名と数量の表示
-                    let productText = item.displayName;
-                    if (!item.category.startsWith('kiso-')) {
-                        productText += ` (${item.quantity}${item.unit})`;
-                    }
-
-                    // 基本価格・基本数量の情報を表示
-                    let priceInfo = '';
-                    if (!item.category.startsWith('kiso-')) {
-                        const productData = productsData[item.category]?.[item.item];
-                        if (productData) {
-                            if (productData.areaThreshold && item.quantity > productData.areaThreshold) {
-                                priceInfo = `（基本数量${productData.areaThreshold}${item.unit}以上: ${productData.price.toLocaleString()}円/${item.unit}）`;
-                            } else if (productData.areaThreshold) {
-                                priceInfo = `（基本数量${productData.areaThreshold}${item.unit}未満: ${productData.base.toLocaleString()}円）`;
-                            }
-                        }
-                    }
+                    let productText = `${item.displayName}（${item.quantity}${item.unit}）`;
 
                     li.innerHTML = `
                         <div>
                             <span>${productText}</span>
                             <small class="text-muted d-block">
-                                ${priceInfo}
                                 小計: ${item.subtotal.toLocaleString()}円
-                                ${item.discount > 0 ? ` (割引: -${(item.basePrice - item.subtotal).toLocaleString()}円)` : ''}
                             </small>
                         </div>
                         <div class="d-flex align-items-center">
@@ -476,20 +466,24 @@
                 }, { subtotal: 0, tax: 0, total: 0 });
 
                 // 一般管理費の適用
+                let overhead = 0;
                 if (hasOverhead) {
-                    totals.subtotal += OVERHEAD_AMOUNT;
-                    totals.total += OVERHEAD_AMOUNT;
+                    overhead = OVERHEAD_AMOUNT;
                 }
 
+                // 税抜総額（商品合計＋管理費）
+                const subtotalWithOverhead = totals.subtotal + overhead;
+                // 消費税
+                const tax = Math.floor(subtotalWithOverhead * TAX_RATE);
+                // 税込総額
+                const totalWithTax = subtotalWithOverhead + tax;
+
                 totalElement.innerHTML = `
-                    <div class="h4 mb-0">合計金額: ${totals.total.toLocaleString()}円</div>
-                    <div class="text-muted">
-                        <small>
-                            商品合計: ${totals.subtotal.toLocaleString()}円
-                            ${hasOverhead ? ` + 一般管理費: ${OVERHEAD_AMOUNT.toLocaleString()}円` : ''}
-                            (税込: ${totals.total.toLocaleString()}円)
-                        </small>
-                    </div>
+                
+                    <div class="mb-1">税抜総額：<span class="fw-bold">${subtotalWithOverhead.toLocaleString()}円</span></div>
+                    <div class="mb-1">管理費：<span class="fw-bold">${overhead.toLocaleString()}円</span></div>
+                    <div class="mb-1">消費税：<span class="fw-bold">${tax.toLocaleString()}円</span></div>
+                    <div class="mb-1">税込総額：<span class="fw-bold text-primary">${totalWithTax.toLocaleString()}円</span></div>
                 `;
             }
 
@@ -524,6 +518,89 @@
             // カテゴリの初期化を実行
             initCategorySelect();
         });
+
+        // カテゴリのセレクトボックスを初期化する関数
+        function initCategorySelect() {
+            const categorySelect = document.getElementById('modalCategory');
+            categorySelect.innerHTML = '<option value="">カテゴリを選択してください</option>';
+
+            // 通常商品カテゴリ
+            if (typeof productsData !== 'undefined') {
+                Object.keys(productsData).forEach(category => {
+                    const option = document.createElement('option');
+                    option.value = category;
+                    option.textContent = category;
+                    categorySelect.appendChild(option);
+                });
+            }
+
+            // 基礎関連カテゴリを追加
+            if (typeof kisoProductsData !== 'undefined') {
+                Object.keys(kisoProductsData).forEach(category => {
+                    const option = document.createElement('option');
+                    option.value = `kiso-${category}`;
+                    option.textContent = `基礎：${category}`;
+                    categorySelect.appendChild(option);
+                });
+            }
+        }
+
+        // 商品のセレクトボックスを更新する関数
+        function updateProductSelect(category) {
+            const productSelect = document.getElementById('modalProduct');
+            productSelect.innerHTML = '<option value="">商品を選択してください</option>';
+
+            // 基礎関連商品
+            if (category && category.startsWith('kiso-')) {
+                const kisoCategory = category.replace('kiso-', '');
+                if (typeof kisoProductsData !== 'undefined' && kisoProductsData[kisoCategory]) {
+                    Object.keys(kisoProductsData[kisoCategory]).forEach(item => {
+                        const option = document.createElement('option');
+                        option.value = item;
+                        option.textContent = item;
+                        productSelect.appendChild(option);
+                    });
+                }
+            } 
+            // 通常商品
+            else if (category && typeof productsData !== 'undefined' && productsData[category]) {
+                Object.keys(productsData[category]).forEach(item => {
+                    const option = document.createElement('option');
+                    option.value = item;
+                    option.textContent = item;
+                    productSelect.appendChild(option);
+                });
+            }
+            // 商品選択時に単位を更新
+            productSelect.addEventListener('change', function() {
+                updateUnitDisplay(category, this.value, category && category.startsWith('kiso-'));
+            });
+        }
+
+        // 単位表示の更新
+        function updateUnitDisplay(category, item, isKiso) {
+            let unit = '数量';
+            // 消毒カテゴリは「㎡」
+            if (category === '消毒') {
+                unit = '㎡';
+            } else if ([
+                'SO260新','SO260買','SO2(DC2)新','SO2(DC2)買','MJ60新','MJ60買','拡散2新','拡散2買','DC2'
+            ].includes(item)) {
+                unit = '台';
+            } else if (isKiso) {
+                const kisoCategory = category.replace('kiso-', '');
+                const kisoData = kisoProductsData[kisoCategory]?.[item];
+                if (kisoData && kisoData.unit) {
+                    unit = kisoData.unit;
+                }
+            } else {
+                const productData = productsData[category]?.[item];
+                if (productData && productData.unit) {
+                    unit = productData.unit;
+                }
+            }
+            document.getElementById('qtyUnit').textContent = unit;
+        }
     </script>
 </body>
 </html> 
